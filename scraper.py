@@ -1,37 +1,28 @@
-import requests
-from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
-# setup basic structure to fetch color hunt website -- 
-def scraper_color():
-    url= "https://colorhunt.co/"
-    response = requests.get(url)
+def scraper(playwright):
+    browser = playwright.chromium.launch(headless=False)
+    page = browser.new_page()
+    page.goto("https://colorhunt.co/")
 
-# create a BeautifulSoup object to parse through the site 
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
+    # Wait for the content to load
+    page.wait_for_selector('div.feed.global')
 
-        # find all the color palette elements 
-        palette_elements = soup.find_all('div', class_='item')
+    # Extract color palette information
+    palettes = page.query_selector_all('.item:not(.hide)')
+    
+    for palette in palettes[:5]:  # Let's look at the first 5 palettes
+        color_spans = palette.query_selector_all('.place span[data-copy]')
+        color_codes = [span.get_attribute('data-copy') for span in color_spans]
+        
+        # Get palette code (unique identifier)
+        palette_code = palette.get_attribute('data-code')
+        
+        print(f"Palette Code: {palette_code}")
+        print(f"Colors: {', '.join(color_codes)}")
+        print("---")
 
-        for palette in palette_elements[:5]: # loop through first five palettes
-        # extract color codes 
-            color_divs = palette.find_all('div', class_='palette') # within each palette find each individual color 
-        # loop through color_divs and create list of color codes for the palette 
-            color_codes = [div['data-copy'] for div in color_divs] # extract the color codes from 'data-copy' attribute of each color div 
-        # need to inspect elements of the dev tools to get exact name of HEX variable 
+    browser.close()
 
-        # # extract likes count 
-        # # find <span> extract its contents 
-        #     likes = palette.find('span', class_='palette-likes').text.strip()
-
-        # find and extract color data - print 
-            print("successfully fetched colors")
-            print(f"Colors: {', '.join(color_codes)}")
-            # print(f"Likes: {likes}")
-            print("---")
-
-    else:
-            print(f"no color soup for you status: {response.status_code}")
-
-if __name__ == "__main__":
-    scraper_color()
+with sync_playwright() as playwright:
+    scraper(playwright)
